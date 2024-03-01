@@ -52,7 +52,7 @@ c = zeros(size(Q,1), 1);               % Generate c, this is the linear constant
 
 %% LQR
 
-Q_lqr = eye(4);
+Q_lqr = diag([5; 1; 1; 1]); %change this to modify K matrix and system behaviour
 R_lqr = 1;
 [K,S,e] = dlqr(A1,B1,Q_lqr,R_lqr)
 
