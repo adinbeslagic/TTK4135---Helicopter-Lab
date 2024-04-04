@@ -1,5 +1,5 @@
-clear;
-clc;
+clear
+clc
 
 %% Initialization and model definition
 init03; % Change this to the init file corresponding to your helicopter
@@ -39,8 +39,8 @@ z  = zeros(N*mx+M*mu,1);                        % Initialize z for the whole hor
 z0 = z;                                         % Initial value for optimization
 
 %% Bounds
-ul 	    = -(60*pi)/360;                         % Lower bound on control
-uu 	    = (60*pi)/360;                          % Upper bound on control
+ul 	    = -pi/2;                         % Lower bound on control
+uu 	    = pi/2;                         % Upper bound on control
 
 xl      = -Inf*ones(mx,1);                      % Lower bound on states (no bound)
 xu      = Inf*ones(mx,1);                       % Upper bound on states (no bound)
@@ -50,13 +50,13 @@ xu(3)   = uu;                                   % Upper bound on state x3
 % Generate constraints on measurements and inputs
 [vlb,vub]       = gen_constraints(N, M, xl, xu, ul, uu); 
 vlb(N*mx+M*mu)  = 0;                            % We want the last input to be zero
-vub(N*mx+M*mu)  = 0                             % We want the last input to be zero
+vub(N*mx+M*mu)  = 0;                            % We want the last input to be zero
 
 % Generate the matrix Q and the vector c (objecitve function weights in the QP problem) 
 Q1 = zeros(mx,mx);
 Q1(1,1) = 1;                                    % Weight on travel, modify this
 Q1(2,2) = 0;                                    % Weight on travel rate
-Q1(3,3) = 1;                                  % Weight on pitch modify this one for experiments
+Q1(3,3) = 1;                                    % Weight on pitch modify this one for experiments
 Q1(4,4) = 0;                                    % Weight on pitch rate
 Q1(5,5) = 0;                                    % Weight on elevation
 Q1(6,6) = 0;                                    % Weight on elevation rate
@@ -67,7 +67,7 @@ c = zeros(size(G,1), 1);                        % Generate c, this is the linear
 %% LQR
 Q_lqr = diag([5; 1; 1; 1; 2; 1]);               %Weight on states for LQR
 R_lqr = diag([1; 1]);                           %Weight on inputs for LQR
-[K,S,e] = dlqr(A1,B1,Q_lqr,R_lqr)               %Generate K - gain matrix for feedback
+[K,S,e] = dlqr(A1,B1,Q_lqr,R_lqr);               %Generate K - gain matrix for feedback
 
 %% Generate system matrixes for linear model
 Aeq = gen_aeq(A1, B1, N, mx, mu);               % Generate A,
@@ -77,8 +77,9 @@ beq(1:mx, 1) = A1*x0;
 %% Solve QP problem with nonlinear constraint
 f = @(x) 1/2*x'*G*x;
 nonlcon = @elev_con;
+opt = optimoptions('fmincon','Algorithm','sqp','MaxFunEvals',40000);
 tic
-[z, ~] = fmincon(f, z0, [], [], Aeq, beq, vlb, vub, nonlcon)
+[z, ~] = fmincon(f, z0, [], [], Aeq, beq, vlb, vub, nonlcon, opt);
 toc
 
 % Calculate objective value
@@ -118,11 +119,12 @@ x6   = [zero_padding; x6; zero_padding];
 %% Solution for the sim file
 t = 0:delta_t:delta_t*(length(u)-1);
 u_ts = timeseries(u, t);                    %Solution input
-x_ts = timeseries([x1 x2 x3 x4], t);        %Solution states
+x_ts = timeseries([x1 x2 x3 x4], t);        %Solution states, x5 and x6 missing?
 
 %% Plotting
 
-figure(2)
+figure(3)
+hold on;
 subplot(4,2,1)
 stairs(t,u1,'LineWidth', 3),grid
 ylabel('input pitch', 'FontSize', 14),xlabel('tid (s)', 'FontSize', 14)
@@ -147,4 +149,5 @@ xlabel('tid (s)', 'FontSize', 14),ylabel('e', 'FontSize', 14)
 subplot(4,2,8)
 plot(t,x6,'m',t,x6','mo', 'LineWidth',3),grid
 xlabel('tid (s)', 'FontSize', 14),ylabel('edot', 'FontSize', 14)
+hold on;
 
